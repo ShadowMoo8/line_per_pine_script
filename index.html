@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Line‑by‑Line Script Generator — Robust (MetaMask-safe)</title>
+  <title>Line‑by‑Line Script Generator — Robust (Vercel-hosted)</title>
   <style>
     :root{--bg:#0b0c10;--muted:#8b93a7;--text:#e6e9f0;--accent:#7c5cff;--accent-2:#2ee6a6;--danger:#ff5c7a;--border:#232838}
     *{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:radial-gradient(1200px 600px at 80% -10%,#1a2030 0,transparent 60%),var(--bg);line-height:1.5}
@@ -27,8 +27,8 @@
 <body>
   <div class="wrap">
     <header>
-      <h1>Line‑by‑Line Script Generator — Robust</h1>
-      <div class="top-right"><div class="tag">Approve lines → build short scripts</div></div>
+      <h1>Line‑by‑Line Script Generator — Vercel-hosted</h1>
+      <div class="top-right"><div class="tag">API key secured via Vercel</div></div>
     </header>
 
     <div class="grid">
@@ -60,35 +60,15 @@
             </div>
           </div>
 
-          <div class="row" style="margin-top:8px">
-            <div>
-              <label for="sfs_apiKey">OpenAI API key (stored locally)</label>
-              <input id="sfs_apiKey" type="password" placeholder="sk-... (or leave blank for Demo mode)" />
-            </div>
-            <div>
-              <label>&nbsp;</label>
-              <div class="btns">
-                <button id="sfs_start">Start</button>
-                <button id="sfs_stop" class="danger" disabled>Stop</button>
-                <button id="sfs_reset" class="ghost">Reset</button>
-              </div>
-            </div>
-          </div>
-
-          <div style="margin-top:8px" class="row">
-            <div>
-              <label for="sfs_demo">Self-test / Demo mode</label>
-              <select id="sfs_demo"><option value="0">Live (OpenAI)</option><option value="1">Demo mode (no API)</option></select>
-            </div>
-            <div>
-              <label for="sfs_selftest">Run self-test</label>
-              <div class="btns"><button id="sfs_selftest" class="secondary">Run demo test (6 lines)</button></div>
-            </div>
+          <div class="btns" style="margin-top:8px">
+            <button id="sfs_start">Start</button>
+            <button id="sfs_stop" class="danger" disabled>Stop</button>
+            <button id="sfs_reset" class="ghost">Reset</button>
           </div>
 
           <div class="status" style="margin-top:10px">
             <span class="pill" id="sfs_statePill">Idle</span>
-            <span id="sfs_statusText">Ready.</span>
+            <span id="sfs_statusText">Ready. API key secured via Vercel environment variables.</span>
           </div>
 
           <div class="kpi" style="margin-top:12px">
@@ -98,16 +78,14 @@
             <div class="item"><div class="n" id="sfs_kpiWords">0</div><div class="l">Avg words/line</div></div>
           </div>
 
-          <div class="note">If you previously saw a "Failed to connect to MetaMask" error: that usually comes from a browser extension interfering with network calls. This page avoids touching extension APIs; if you still see errors, use <b>Demo mode</b> or test in a private window with extensions disabled.</div>
-
-          <div class="danger-box" id="sfs_warningBox" style="display:none">Extension error detected. The app has caught it and will keep running. See Activity Log for details.</div>
+          <div class="note">This version securely stores your API key using Vercel environment variables. All requests are proxied through your Vercel deployment.</div>
         </div>
       </div>
 
       <div class="card">
         <h3>Line Review</h3>
         <div class="body">
-          <div id="sfs_pending" class="line pending" style="min-height:70px">No line yet. Click <b>Start</b> or run the demo test.</div>
+          <div id="sfs_pending" class="line pending" style="min-height:70px">No line yet. Click <b>Start</b>.</div>
 
           <div class="btns" style="margin-top:10px">
             <button id="sfs_approve" class="success" disabled>Approve</button>
@@ -134,7 +112,6 @@
             <button id="sfs_copyAll" class="secondary">Copy all</button>
             <button id="sfs_downloadTxt" class="ghost">Download .txt</button>
             <button id="sfs_downloadMd" class="ghost">Download .md</button>
-            <button id="sfs_simMeta" class="ghost">Simulate MetaMask error</button>
           </div>
         </div>
       </div>
@@ -144,7 +121,7 @@
       <h3>Activity Log</h3>
       <div class="body">
         <div id="sfs_log" class="log"></div>
-        <div class="footer">This app runs client-side. Use Demo mode to test without an API key. If you want a production-safe setup, ask me to add a server-side proxy for the OpenAI key.</div>
+        <div class="footer">All requests are proxied through your Vercel deployment. API key is never exposed to the browser.</div>
       </div>
     </div>
   </div>
@@ -159,23 +136,11 @@
     function setState(state, text=''){ $('sfs_statePill').textContent = state; $('sfs_statusText').textContent = text; }
 
     // App state
-    let running = false; let approved = []; let targetLines = 0; let tries = 0; let currentCandidate = '';
-
-    // Demo lines (existing test cases) — keep these unchanged
-    const DEMO_LINES = [
-      'Stop scrolling — this one tip changed my mornings.',
-      'You don’t need willpower, you need a system.',
-      'Here’s a tiny habit that beats motivation every time.',
-      'Most advice is noise — try this instead.',
-      'If you’re juggling priorities, do this one thing.',
-      'Comment START and I’ll send the step-by-step.'
-    ];
-
-    // Additional automated test: empty-line and long-line handling
-    const EXTRA_TESTS = [
-      '',
-      'This line is intentionally long and should be truncated by the max-words logic to avoid UI overflow or unexpected behavior when the model returns very verbose text.'
-    ];
+    let running = false; 
+    let approved = []; 
+    let targetLines = 0; 
+    let tries = 0; 
+    let currentCandidate = '';
 
     function recalcKPIs(){
       $('sfs_kpiApproved').textContent = approved.length;
@@ -189,175 +154,239 @@
     function renderApproved(){
       const ol = $('sfs_approved'); ol.innerHTML = '';
       approved.forEach((line,i)=>{
-        const li = document.createElement('li'); li.className = 'line approved'; li.style.margin='8px 16px'; li.textContent = line || '(skipped)'; ol.appendChild(li);
+        const li = document.createElement('li'); 
+        li.className = 'line approved'; 
+        li.style.margin='8px 16px'; 
+        li.textContent = line || '(skipped)'; 
+        ol.appendChild(li);
       });
       recalcKPIs();
     }
 
-    function disableReview(disabled){ ['sfs_approve','sfs_revise','sfs_regen','sfs_skip'].forEach(id=>{ const el=$(id); if(el) el.disabled = disabled; }); }
+    function disableReview(disabled){ 
+      ['sfs_approve','sfs_revise','sfs_regen','sfs_skip'].forEach(id=>{ 
+        const el=$(id); 
+        if(el) el.disabled = disabled; 
+      }); 
+    }
 
-    function extractFirstLine(text){ if(!text) return ''; const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean); return lines.length ? lines[0] : text.trim(); }
-    function enforceMaxWords(line, maxWords){ if(!line) return ''; const words = line.split(/\s+/); if(words.length <= maxWords) return line; return words.slice(0,maxWords).join(' ') + '…'; }
+    function extractFirstLine(text){ 
+      if(!text) return ''; 
+      const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean); 
+      return lines.length ? lines[0] : text.trim(); 
+    }
+    
+    function enforceMaxWords(line, maxWords){ 
+      if(!line) return ''; 
+      const words = line.split(/\s+/); 
+      if(words.length <= maxWords) return line; 
+      return words.slice(0,maxWords).join(' ') + '…'; 
+    }
 
-    // Robust fetch wrapper that surfaces user-friendly errors
-    async function safeFetchOpenAI(url, options){
-      try{
-        const resp = await fetch(url, options);
-        return resp;
-      }catch(e){
-        // If the error string contains extension names, rethrow a normalized message so UI can handle it
-        const s = String(e).toLowerCase();
-        if(s.includes('metamask') || s.includes('failed to connect to metamask') || s.includes('ethereum')){
-          const err = new Error('Network call blocked or interfered with by a browser extension (mentions MetaMask/ethereum). Try Demo mode or disable extensions.');
-          err.internal = true; throw err;
+    // Fetch through Vercel proxy
+    async function fetchThroughProxy(body) {
+      try {
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(body)
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Server error: ${response.status} - ${errorText}`);
         }
-        throw e;
+        
+        return await response.json();
+      } catch (error) {
+        log(`<span style="color:#ff7b8a">Network error: ${error.message}</span>`);
+        throw new Error('Failed to connect to API endpoint. Check your deployment.');
       }
     }
 
-    // Ask for one line (demo path preserved)
-    async function askNextLine({apiKey, model, temperature, brief, maxWords, guidance=null, demo=false}){
-      if(demo){ const idx = approved.length % DEMO_LINES.length; await new Promise(r=>setTimeout(r,180)); return DEMO_LINES[idx]; }
-
+    // Ask for one line
+    async function askNextLine({model, temperature, brief, maxWords, guidance=null}){
       const system = `You are a short-form video scriptwriter. Generate scripts ONE LINE AT A TIME.\nRules:\n- Reply with EXACTLY one line. No numbering, no extra commentary.\n- Keep it under ${maxWords} words.\n- Maintain continuity with the APPROVED LINES context.`;
       const context = approved.length ? `APPROVED LINES so far:\n${approved.map((l,i)=>`${i+1}. ${l}`).join('\n')}` : 'No approved lines yet.';
-      const user = guidance ? `BRIEF:\n${brief}\n\n${context}\n\nRevise the PREVIOUS CANDIDATE LINE using this guidance: ${guidance}.\nReturn one improved line only.` : `BRIEF:\n${brief}\n\n${context}\n\nReturn the NEXT BEST LINE only.`;
+      const user = guidance ? 
+        `BRIEF:\n${brief}\n\n${context}\n\nRevise the PREVIOUS CANDIDATE LINE using this guidance: ${guidance}.\nReturn one improved line only.` : 
+        `BRIEF:\n${brief}\n\n${context}\n\nReturn the NEXT BEST LINE only.`;
 
-      const body = { model, temperature: Number(temperature) || 0.6, messages:[{role:'system',content:system},{role:'user',content:user}] };
+      const body = { 
+        model, 
+        temperature: Number(temperature) || 0.6, 
+        messages: [
+          {role:'system', content: system},
+          {role:'user', content: user}
+        ] 
+      };
 
-      const url = 'https://api.openai.com/v1/chat/completions';
-      const options = { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`}, body:JSON.stringify(body) };
-
-      try{
-        const resp = await safeFetchOpenAI(url, options);
-        if(!resp.ok){ const txt = await resp.text(); const short = txt.length>200? txt.slice(0,200)+'…' : txt; throw new Error(`OpenAI API error ${resp.status}: ${short}`); }
-        const data = await resp.json();
+      try {
+        const data = await fetchThroughProxy(body);
         const raw = data?.choices?.[0]?.message?.content || '';
         const first = extractFirstLine(raw);
         return enforceMaxWords(first, maxWords);
-      }catch(err){
-        // Normalize metamask-like interference to a friendly UI message
-        const message = String(err.message || err).toLowerCase();
-        if(message.includes('metamask') || message.includes('ethereum') || message.includes('extension')){
-          // show warning box and log, but don't hard-fail (return empty candidate)
-          $('sfs_warningBox').style.display = 'block';
-          log(`<span style="color:#ffb6c1">Extension interference detected: ${err.message}</span>`);
-          throw new Error('Extension interference detected — try Demo mode or disable extensions.');
-        }
-        throw err;
+      } catch (error) {
+        setState('Error', error.message);
+        log(`<span style="color:#ff7b8a">${error.message}</span>`);
+        return '';
       }
     }
 
     // Generation flow
     async function generateNext(guidance=null){
-      if(generateNext._inFlight) return; generateNext._inFlight = true; disableReview(true);
-      try{
+      if(generateNext._inFlight) return; 
+      generateNext._inFlight = true; 
+      disableReview(true);
+      
+      try {
         const brief = $('sfs_brief').value.trim();
-        const apiKey = $('sfs_apiKey').value.trim();
         const model = $('sfs_model').value.trim();
         const temperature = $('sfs_temperature').value;
         const maxWords = Number($('sfs_maxWords').value) || 14;
-        const demo = $('sfs_demo').value === '1';
 
-        if(!demo && !apiKey){ setState('Error','No API key provided (or switch to Demo mode).'); log('Missing API key.'); generateNext._inFlight = false; return; }
-        if(!brief){ setState('Error','Please fill the brief.'); log('Empty brief.'); generateNext._inFlight = false; return; }
+        if(!brief){ 
+          setState('Error','Please fill the brief.'); 
+          log('Empty brief.'); 
+          return; 
+        }
 
         setState('Thinking…', guidance ? 'Revising current line.' : 'Drafting next line.');
         log(guidance ? `Revising… (${guidance})` : 'Requesting next line…');
 
-        const candidate = await askNextLine({apiKey, model, temperature, brief, maxWords, guidance, demo});
+        const candidate = await askNextLine({model, temperature, brief, maxWords, guidance});
         currentCandidate = candidate || '';
         $('sfs_pending').textContent = currentCandidate || '[No content returned]';
         disableReview(false);
         $('sfs_approve').disabled = !currentCandidate;
         $('sfs_revise').disabled = !currentCandidate;
-        $('sfs_regen').disabled = false; $('sfs_skip').disabled = false;
+        $('sfs_regen').disabled = false; 
+        $('sfs_skip').disabled = false;
         setState('Review','Approve, revise, regenerate or skip.');
-      }catch(err){
-        const msg = err?.message || String(err);
-        setState('Error', msg);
-        log(`<span style="color:#ff7b8a">${msg}</span>`);
-        disableReview(true);
-      }finally{ generateNext._inFlight = false; }
+      } catch (error) {
+        setState('Error', error.message);
+        log(`<span style="color:#ff7b8a">${error.message}</span>`);
+      } finally { 
+        generateNext._inFlight = false; 
+      }
     }
 
-    function finish(){ running=false; $('sfs_start').disabled=false; $('sfs_stop').disabled=true; disableReview(true); setState('Done','Stopped.'); log('Stopped generation.'); }
+    function finish(){ 
+      running=false; 
+      $('sfs_start').disabled=false; 
+      $('sfs_stop').disabled=true; 
+      disableReview(true); 
+      setState('Done','Stopped.'); 
+      log('Stopped generation.'); 
+    }
 
     // UI wiring
     $('sfs_start').addEventListener('click', async ()=>{
-      approved = []; tries = 0; currentCandidate = '';
+      approved = []; 
+      tries = 0; 
+      currentCandidate = '';
       targetLines = Math.max(1, Number($('sfs_lines').value) || 12);
-      renderApproved(); running=true; $('sfs_start').disabled=true; $('sfs_stop').disabled=false; setState('Running','Generating first line…'); await generateNext();
+      renderApproved(); 
+      running=true; 
+      $('sfs_start').disabled=true; 
+      $('sfs_stop').disabled=false; 
+      setState('Running','Generating first line…'); 
+      await generateNext();
     });
 
     $('sfs_stop').addEventListener('click', finish);
-    $('sfs_reset').addEventListener('click', ()=>{ approved=[]; tries=0; currentCandidate=''; renderApproved(); $('sfs_pending').textContent='No line yet. Click Start.'; setState('Idle','Ready.'); disableReview(true); $('sfs_warningBox').style.display='none'; });
-
-    $('sfs_approve').addEventListener('click', async ()=>{ const line = (currentCandidate||'').trim(); if(!line) return; approved.push(line); renderApproved(); if(approved.length >= targetLines){ finish(); return; } setState('Running','Generating next line…'); await generateNext(); });
-
-    $('sfs_revise').addEventListener('click', ()=>{ $('sfs_reviseBox').style.display='block'; $('sfs_reviseText').focus(); });
-    $('sfs_applyRevise').addEventListener('click', async ()=>{ const g = $('sfs_reviseText').value.trim(); $('sfs_reviseBox').style.display='none'; if(!g) return; tries++; recalcKPIs(); await generateNext(g); });
-    $('sfs_cancelRevise').addEventListener('click', ()=>{ $('sfs_reviseBox').style.display='none'; });
-    $('sfs_regen').addEventListener('click', async ()=>{ tries++; recalcKPIs(); await generateNext(); });
-    $('sfs_skip').addEventListener('click', async ()=>{ approved.push(''); renderApproved(); if(approved.length >= targetLines){ finish(); return; } await generateNext(); });
-
-    $('sfs_copyAll').addEventListener('click', async ()=>{ const text = approved.filter(Boolean).join('\n'); try{ await navigator.clipboard.writeText(text); setState('Copied','Copied to clipboard.'); log('Copied approved lines to clipboard.'); }catch(e){ log('Clipboard write failed: ' + (e.message||e)); alert('Copy failed — your browser may block clipboard access.'); } });
-
-    function download(filename, content){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content],{type:'text/plain'})); a.download = filename; a.click(); URL.revokeObjectURL(a.href); }
-    $('sfs_downloadTxt').addEventListener('click', ()=>{ const text = approved.filter(Boolean).join('\n'); download('script.txt',text); });
-    $('sfs_downloadMd').addEventListener('click', ()=>{ const text = approved.filter(Boolean).map((l,i)=>`${i+1}. ${l}`).join('\n'); download('script.md',text); });
-
-    // Self-test (existing test case) — keep behavior the same
-    $('sfs_selftest').addEventListener('click', async ()=>{
-      $('sfs_demo').value = '1'; approved = []; tries = 0; targetLines = 6; renderApproved(); setState('Running','Running demo test…');
-      for(let i=0;i<6;i++){ await generateNext(); const candidate = (currentCandidate||'').trim(); if(candidate) approved.push(candidate); renderApproved(); }
-      setState('Done','Demo finished.'); $('sfs_start').disabled=false; $('sfs_stop').disabled=true; log('Demo test completed.');
+    $('sfs_reset').addEventListener('click', ()=>{ 
+      approved=[]; 
+      tries=0; 
+      currentCandidate=''; 
+      renderApproved(); 
+      $('sfs_pending').textContent='No line yet. Click Start.'; 
+      setState('Idle','Ready.'); 
+      disableReview(true); 
     });
 
-    // Extra automated test button to exercise edge cases
-    document.getElementById('sfs_simMeta').addEventListener('click', ()=>{
-      // Simulate an extension-like error to verify our global handlers and warning UI
-      const err = new Error('s: Failed to connect to MetaMask');
-      // Dispatch an unhandledrejection and catch via our handler below
-      log('Simulating extension error: "Failed to connect to MetaMask" (this will trigger the global handler).');
-      // Throw inside a Promise rejection so unhandledrejection handler catches it
-      Promise.reject(err);
+    $('sfs_approve').addEventListener('click', async ()=>{ 
+      const line = (currentCandidate||'').trim(); 
+      if(!line) return; 
+      approved.push(line); 
+      renderApproved(); 
+      if(approved.length >= targetLines){ 
+        finish(); 
+        return; 
+      } 
+      setState('Running','Generating next line…'); 
+      await generateNext(); 
     });
 
-    // Global error handlers — convert noisy extension errors into friendly UI messages and prevent page crash
-    window.addEventListener('error', (event)=>{
-      try{
-        const msg = String(event?.error?.message || event?.message || '').toLowerCase();
-        if(msg.includes('metamask') || msg.includes('failed to connect to metamask') || msg.includes('ethereum')){
-          event.preventDefault && event.preventDefault();
-          $('sfs_warningBox').style.display = 'block';
-          log(`<span style="color:#ffb6c1">Caught extension error: ${event?.error?.message || event?.message}</span>`);
-          setState('Warning','Extension interference detected. See log.');
-          return true;
-        }
-      }catch(e){/* ignore */}
-      return false;
+    $('sfs_revise').addEventListener('click', ()=>{ 
+      $('sfs_reviseBox').style.display='block'; 
+      $('sfs_reviseText').focus(); 
+    });
+    
+    $('sfs_applyRevise').addEventListener('click', async ()=>{ 
+      const g = $('sfs_reviseText').value.trim(); 
+      $('sfs_reviseBox').style.display='none'; 
+      if(!g) return; 
+      tries++; 
+      recalcKPIs(); 
+      await generateNext(g); 
+    });
+    
+    $('sfs_cancelRevise').addEventListener('click', ()=>{ 
+      $('sfs_reviseBox').style.display='none'; 
+    });
+    
+    $('sfs_regen').addEventListener('click', async ()=>{ 
+      tries++; 
+      recalcKPIs(); 
+      await generateNext(); 
+    });
+    
+    $('sfs_skip').addEventListener('click', async ()=>{ 
+      approved.push(''); 
+      renderApproved(); 
+      if(approved.length >= targetLines){ 
+        finish(); 
+        return; 
+      } 
+      await generateNext(); 
     });
 
-    window.addEventListener('unhandledrejection', (event)=>{
-      try{
-        const reason = String(event?.reason?.message || event?.reason || '').toLowerCase();
-        if(reason.includes('metamask') || reason.includes('failed to connect to metamask') || reason.includes('ethereum')){
-          event.preventDefault && event.preventDefault();
-          $('sfs_warningBox').style.display = 'block';
-          log(`<span style="color:#ffb6c1">Unhandled rejection intercepted (extension-like): ${event?.reason?.message || event?.reason}</span>`);
-          setState('Warning','Extension interference detected. See log.');
-          return true;
-        }
-      }catch(e){/* ignore */}
-      // For other unhandled rejections, show them but don't stop the page
-      log(`<span style="color:#ff7b8a">Unhandled rejection: ${String(event?.reason || '')}</span>`);
-      setState('Error','There was an unexpected error. See log.');
-      return false;
+    $('sfs_copyAll').addEventListener('click', async ()=>{ 
+      const text = approved.filter(Boolean).join('\n'); 
+      try{ 
+        await navigator.clipboard.writeText(text); 
+        setState('Copied','Copied to clipboard.'); 
+        log('Copied approved lines to clipboard.'); 
+      }catch(e){ 
+        log('Clipboard write failed: ' + (e.message||e)); 
+        alert('Copy failed — your browser may block clipboard access.'); 
+      } 
+    });
+
+    function download(filename, content){ 
+      const a = document.createElement('a'); 
+      a.href = URL.createObjectURL(new Blob([content],{type:'text/plain'})); 
+      a.download = filename; 
+      a.click(); 
+      URL.revokeObjectURL(a.href); 
+    }
+    
+    $('sfs_downloadTxt').addEventListener('click', ()=>{ 
+      const text = approved.filter(Boolean).join('\n'); 
+      download('script.txt',text); 
+    });
+    
+    $('sfs_downloadMd').addEventListener('click', ()=>{ 
+      const text = approved.filter(Boolean).map((l,i)=>`${i+1}. ${l}`).join('\n'); 
+      download('script.md',text); 
     });
 
     // Initialization
-    disableReview(true); recalcKPIs(); log('Ready. Fill the brief and either use Demo mode or provide an API key.');
+    disableReview(true); 
+    recalcKPIs(); 
+    log('Ready. Fill the brief and click Start.');
+    setState('Ready', 'API key secured via Vercel environment variables');
   </script>
 </body>
 </html>
